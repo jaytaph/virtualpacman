@@ -1,0 +1,27 @@
+{% extends layout %}
+
+{% block title %}
+  Blaat
+{% endblock %}
+
+{% block content %}
+
+  {% for post in posts %}
+    <strong>{{ post.name }}</strong> @ {{ post.dt|date("d-m-Y H:i:s")}}:<br>
+    {{ post.post }}
+    <hr>
+  {% endfor %}
+
+{% if app.session.get('authenticated') %}
+<form method=post>
+  <table>
+      <tr><td>User:</td><td>{{ app.session.get('fullname') }}</td></tr>
+      <tr><td>Post:</td><td><textarea name=post></textarea></td></tr>
+      <tr><td>&nbsp;</td><td><input type=submit></td></tr>
+  </table>
+</form>
+{% else %}
+  <a href="/login">Please login first</a>
+{% endif %}
+ 
+{% endblock %}

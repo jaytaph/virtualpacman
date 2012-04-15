@@ -1,0 +1,15 @@
+<html>
+<head>
+    <title>Blaat</title>
+</head>
+
+<body>
+    <h1>{% block title %}Title{% endblock %}</h1>
+
+    {% if app.session.get('authenticated') %}
+      <h1>Hello {{ app.session.get('fullname') }}, want to <a href="/logout">logout</a></h1>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</body>
+</html>
