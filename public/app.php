@@ -7,80 +7,77 @@
 
     <script type="text/javascript">
 
-    /**
-     * TODO: Add trailing polyline (blue) so we can see where all the ghosts already have been
-     */
-
-//function getNumSteps(route) {
-//     var total_steps = 0;
-//     for (var l=0; l<route.legs.length; l++) {
-//         total_steps += route.legs[l].steps.length;
-//     }
-//     return total_steps;
-// };
-
-function getLeg(route, step) {
-    for (var l=0; l<route.legs.length; l++) {
-        for (var s=0; s<route.legs[l].steps.length; s++) {
-            if (step == 0) {
-                return route.legs[l];
-            }
-            step--;
-        }
-    }
-    return null;
-};
-
- function getStep(route, step) {
-     for (var l=0; l<route.legs.length; l++) {
-         for (var s=0; s<route.legs[l].steps.length; s++) {
-             if (step <= 0) {
-                 return route.legs[l].steps[s];
-             }
-             step--;
-         }
-     }
-     return null;
- };
-
-function getStepFromPolyNum(route, poly_num) {
-    console.log("GSFP "+poly_num);
-    for (l=0; l<route.legs.length; l++) {
-        for (s=0; s<route.legs[l].steps.length; s++) {
-            for (k=0; k<route.legs[l].steps[s].path.length; k++) {
-                poly_num--;
-                if (poly_num <= 0) {
-                    return route.legs[l].steps[s];
-                }
-            }
-        }
-    }
-    return null;
-}
+        /**
+         * TODO: Add trailing polyline (blue) so we can see where all the ghosts already have been
+         */
 
         var TICKER_TIME = 250;  // How many milliseconds between ghosts
         var MAX_GHOSTS = 5;     // Display how many ghosts on the map?
 
-        var pacman;             // Pacman marker
-        var ghosts = [];        // Ghost structure
+        var pacman;             // Pacman structure
+        var ghosts = [];        // Ghost structure array
 
+        // Bounding box for the ghosts to randomly position themselves
         var bound_ne = new google.maps.LatLng(51.50388, 5.62323);
         var bound_sw = new google.maps.LatLng(51.51593, 5.65272);
-
 
         var ghostnames = ['pacman_ghost_b.gif',         // Different ghost names
                           'pacman_ghost_o.gif',
                           'pacman_ghost_p.gif',
                           'pacman_ghost_r.gif'];
+        var ghostcolors = ['#00ffff',
+                           '#ff8f00',
+                           '#ff00ff',
+                           '#ff0000'];
 
+        // Return the actual stap by walking the multidimensial route array
+        function getStep(route, step) {
+            for (var l=0; l<route.legs.length; l++) {
+                for (var s=0; s<route.legs[l].steps.length; s++) {
+                    if (step <= 0) {
+                        return route.legs[l].steps[s];
+                    }
+                    step--;
+                }
+            }
+            return null;
+        };
 
+        // Move pacman to another position and notify our ghosts
+        function movePacman(LatLng) {
+            pacman.marker.setPosition(LatLng);
+
+            // Recalculate all the ghosts
+            for (i=0; i!=ghosts.length; i++) {
+                ghosts[i].recalc = true;
+            }
+        }
+
+        // Get the step number based on the current polyline number, since that does not have to be the actual step number.
+        function getStepFromPolyNum(route, poly_num) {
+            console.log("GSFP "+poly_num);
+            for (l=0; l<route.legs.length; l++) {
+                for (s=0; s<route.legs[l].steps.length; s++) {
+                    for (k=0; k<route.legs[l].steps[s].path.length; k++) {
+                        poly_num--;
+                        if (poly_num <= 0) {
+                            return route.legs[l].steps[s];
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        // Get random (fixed) number
         function getRandomInRange(from, to, fixed) {
             if (to < from) { tmp = to; to = from; from = tmp; }
             return (Math.random() * (to - from) + from).toFixed(fixed);
         }
 
-        function createPolyLine(route) {
-            var polyline = new google.maps.Polyline( { path: [], strokeColor: '#00FF00', strokeWeight: 1 });
+        // Create and return a polyline from a route
+        function createPolyLine(route, color) {
+            var polyline = new google.maps.Polyline( { path: [], strokeColor: color, strokeWeight: 1 });
 
             var path = route.overview_path;
             var legs = route.legs;
@@ -96,12 +93,14 @@ function getStepFromPolyNum(route, poly_num) {
             return polyline;
         }
 
+        // Initialize and add a new ghost to a map.
         function addGhost(map, i) {
             var position = new google.maps.LatLng(
                                     getRandomInRange(bound_sw.lat(), bound_ne.lat(), 4),
                                     getRandomInRange(bound_sw.lng(), bound_ne.lng(), 4)
                             );
 
+            // Create a new ghost and position it on the map
             var ghostImage = new google.maps.MarkerImage(ghostnames[i % ghostnames.length],
                 new google.maps.Size(15,15),
                 new google.maps.Point(0,0),
@@ -118,6 +117,7 @@ function getStepFromPolyNum(route, poly_num) {
             // create ghost structure
             var ghost = {
                 index        : i,
+                polycolor    : ghostcolors[i % ghostnames.length],
                 active       : false,
                 calc_count   : 0,           // How many times did we calculated a route for this ghost
                 marker       : ghostMarker,     // The actual marker
@@ -154,14 +154,13 @@ function getStepFromPolyNum(route, poly_num) {
                     }
 
                     // Pick a random route
-                    r = getRandomInRange (0, response.routes.length-1);
-                    console.log("RL: "+response.routes.length);
-                    console.log("RP: "+r);
+                    //r = getRandomInRange (0, response.routes.length-1);
+                    r = ghost.index % response.routes.length;
 
                     route = response.routes[r];
 
                     // Create polyline from the response and show it on the map
-                    poly = createPolyLine(route);
+                    poly = createPolyLine(route, ghost.polycolor);
                     poly.setMap(ghost.marker.map);
 
 
@@ -240,19 +239,8 @@ function getStepFromPolyNum(route, poly_num) {
             }
 
             // Move the ghosts
-            setTimeout("moveGhosts()", 2000);
+            setTimeout(moveGhosts, 2000);
         }
-
-
-    function movePacman(LatLng) {
-        pacman.marker.setPosition(LatLng);
-
-        // Recalculate all the ghosts
-        for (i=0; i!=ghosts.length; i++) {
-            ghosts[i].recalc = true;
-        }
-    }
-
 
         var ticker = 0;
         function moveGhosts() {
@@ -326,7 +314,7 @@ function getStepFromPolyNum(route, poly_num) {
                 document.getElementById("speed"+i).innerHTML = ((ghost.speed) * 1).toFixed(2) + " Km/h";
             }
 
-            setTimeout("moveGhosts()", TICKER_TIME);
+            setTimeout(moveGhosts, TICKER_TIME);
         }
 
     </script>
