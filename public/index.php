@@ -1,6 +1,13 @@
 <html>
 
 <head>
+    <style type="text/css" media="all">
+    * {
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 10px;
+    }
+    </style>
+
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
     <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
     <script type="text/javascript" src="epoly.js"></script>
@@ -11,8 +18,11 @@
          * TODO: Add trailing polyline (blue) so we can see where all the ghosts already have been
          */
 
-        var TICKER_TIME = 250;  // How many milliseconds between ghosts
+        var TICKER_TIME = 200;  // How many milliseconds between ghosts
         var MAX_GHOSTS = 5;     // Display how many ghosts on the map?
+        var GHOST_RADIUS_ENTRY = 250; // Distance when a ghost will become active
+        var GHOST_RADIUS_EXIT  = 500; // Distance when a ghost will become inactive
+        var GHOST_SPEED  = 2;   // Ghost speed
 
         var pacman;             // Pacman structure
         var ghosts = [];        // Ghost structure array
@@ -55,7 +65,6 @@
 
         // Get the step number based on the current polyline number, since that does not have to be the actual step number.
         function getStepFromPolyNum(route, poly_num) {
-            console.log("GSFP "+poly_num);
             for (l=0; l<route.legs.length; l++) {
                 for (s=0; s<route.legs[l].steps.length; s++) {
                     for (k=0; k<route.legs[l].steps[s].path.length; k++) {
@@ -113,24 +122,39 @@
                 title:"Nr "+i+": Just haunting.."
             });
 
+            var circle = new google.maps.Circle();
+            var circleOptions = {
+                  strokeColor: "#0000FF",
+                  strokeOpacity: 0.2,
+                  strokeWeight: 2,
+                  fillColor: "#0000FF",
+                  fillOpacity: 0.05,
+                  radius : GHOST_RADIUS_ENTRY,
+                  map: map,
+                  clickable: false,
+            };
+            circle.setOptions(circleOptions);
+            circle.setCenter(position);
+
 
             // create ghost structure
             var ghost = {
-                index        : i,
-                polycolor    : ghostcolors[i % ghostnames.length],
-                active       : false,
-                calc_count   : 0,           // How many times did we calculated a route for this ghost
-                marker       : ghostMarker,     // The actual marker
-                total_dist   : 0,
-                speed        : 10,               // Initial speed
-                total_distance : 0          // The total distance for ALL routes
+                index          : i,
+                polycolor      : ghostcolors[i % ghostnames.length],
+                circle         : circle,
+                active         : false,
+                calc_count     : 0,               // How many times did we calculated a route for this ghost
+                marker         : ghostMarker,     // The actual marker
+                total_dist     : 0,
+                speed          : GHOST_SPEED,              // Initial speed
+                total_distance : 0              // The total distance for ALL routes
             }
 
             // Add ghost to our ghost list
             ghosts.push(ghost);
 
             // Recalculate
-            recalc(ghost, pacman)
+            recalc(ghost, pacman);
         }
 
         function recalc(ghost, pacman) {
@@ -244,22 +268,26 @@
 
         var ticker = 0;
         function moveGhosts() {
-            console.log("Running tick "+ticker)
             ticker += 1;
 
             // Iterate all ghosts
             for (i=0; i!=ghosts.length; i++) {
                 ghost = ghosts[i];
 
-                // Recalculate ghost if needed
-                if (ghost.recalc) {
-                    recalc(ghost, pacman);
-                }
+                // get distance between pacman and ghost
+                var p = ghost.poly.GetPointAtDistance(ghost.distance);
+                var distance = google.maps.geometry.spherical.computeDistanceBetween(p, pacman.marker.position);
+
+                // Activate or deactive ghost if needed
+                if (distance <= GHOST_RADIUS_ENTRY) ghost.active = true;
+                if (distance >= GHOST_RADIUS_EXIT) ghost.active = false;
 
                 // Not an active ghost, so don't do anything
-                if (ghost.active == false) {
-                    continue;
-                }
+                if (ghost.active == false) continue;
+
+                // Recalculate ghost if needed
+                if (ghost.recalc) recalc(ghost, pacman);
+
 
                 // Check if we travelled the whole distance, deactivate ghost if so
                 if (ghost.distance > ghost.total_dist) {
@@ -274,8 +302,9 @@
                 }
 
 
-                // Set new marker position
+                // Set new marker position of the ghost (and circle marker)
                 var p = ghost.poly.GetPointAtDistance(ghost.distance);
+                ghost.circle.setCenter(p);
                 ghost.marker.setPosition(p);
 
                 // Get current step and update info
@@ -294,14 +323,8 @@
                         var steptime = prevstep.duration.value;
                         var stepspeed = ((stepdist/steptime) * 1).toFixed(2);
 
-                        console.log("DIST "+stepdist);
-                        console.log("TIME"+steptime);
-                        console.log("SPEED "+stepspeed);
-
                         //ghost.step = stepspeed / 2.5;
-                        console.log("GS "+ghost.speed);
-
-                        ghost.speed = (stepspeed / 1);
+                        //ghost.speed = (stepspeed / 1);
                     }
                 }
 
@@ -321,7 +344,7 @@
 </head>
 
 <body onload="initialize()">
-    <table border=1 id="ghosttable" width=100%>
+    <table border=1 id="ghosttable" align=center>
         <tr><th colspan=5>Ghost status</th></tr>
         <tr><td>Ghost #1</td><td><div id=speed0>0.00 Km/h</div></td><td><div id=distance0>Km: 0.00</div></td><td><div id=left0>Km: 0.00</div></td><td nowrap width=75%><div id="step0">&nbsp;</div></td></tr>
         <tr><td>Ghost #2</td><td><div id=speed1>0.00 Km/h</div></td><td><div id=distance1>Km: 0.00</div></td><td><div id=left1>Km: 0.00</div></td><td nowrap width=75%><div id="step1">&nbsp;</div></td></tr>
@@ -329,7 +352,29 @@
         <tr><td>Ghost #4</td><td><div id=speed3>0.00 Km/h</div></td><td><div id=distance3>Km: 0.00</div></td><td><div id=left3>Km: 0.00</div></td><td nowrap width=75%><div id="step3">&nbsp;</div></td></tr>
         <tr><td>Ghost #5</td><td><div id=speed4>0.00 Km/h</div></td><td><div id=distance4>Km: 0.00</div></td><td><div id=left4>Km: 0.00</div></td><td nowrap width=75%><div id="step4">&nbsp;</div></td></tr>
     </table>
-    <div id="map_canvas" style="width:800px; height:500px"></div>
+    <br>
+    <center>
+    <div id="map_canvas" style="border: 1px solid black; width:800px; height:500px"></div>
+    </center>
+
+
+    <br>
+    <br>
+    <center>
+    <div style="width:800px">
+        <h1>Moving the pacman</h1>
+        <p>The pacman can be moved around by clicking on the map. It will move directly to that new position.</p>
+
+        <h1>Ghosts</h1>
+        <p>When the pacman moves into the radius of a ghost (as seen by the blue circle around a ghost), the ghost will
+        wake up and start moving towards the pacman. As soon as it will be out of reach (currently set to 500meters),
+        the ghost will sleep again and stay dormant until the pacman will enter the radius again.</p>
+
+
+        <h1>Todo</h1>
+        The pacman should be moved through a mobile phone that will plot it's coordinate to <b>/gpspos.php?lat=..&long=..</b>.
+    </div>
+    </center>
 </body>
 </html>
 
