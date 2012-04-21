@@ -11,6 +11,7 @@
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
     <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
     <script type="text/javascript" src="epoly.js"></script>
+    <script type="text/javascript" src="jquery.js"></script>
 
     <script type="text/javascript">
 
@@ -18,14 +19,17 @@
          * TODO: Add trailing polyline (blue) so we can see where all the ghosts already have been
          */
 
-        var TICKER_TIME = 200;  // How many milliseconds between ghosts
-        var MAX_GHOSTS = 5;     // Display how many ghosts on the map?
-        var GHOST_RADIUS_ENTRY = 250; // Distance when a ghost will become active
-        var GHOST_RADIUS_EXIT  = 500; // Distance when a ghost will become inactive
-        var GHOST_SPEED  = 2;   // Ghost speed
+        var TICKER_TIME = 200;              // How many milliseconds between ghosts
+        var MAX_GHOSTS = 5;                 // Display how many ghosts on the map?
+        var GHOST_RADIUS_ENTRY = 250;       // Distance when a ghost will become active
+        var GHOST_RADIUS_EXIT  = 500;       // Distance when a ghost will become inactive
+        var GHOST_SPEED  = 2;               // Ghost speed
 
         var pacman;             // Pacman structure
         var ghosts = [];        // Ghost structure array
+
+
+        var ticker = 0;         // How many ticks did we process
 
         // Bounding box for the ghosts to randomly position themselves
         var bound_ne = new google.maps.LatLng(51.50388, 5.62323);
@@ -56,6 +60,7 @@
         // Move pacman to another position and notify our ghosts
         function movePacman(LatLng) {
             pacman.marker.setPosition(LatLng);
+            pacman.marker.map.setCenter(LatLng);
 
             // Recalculate all the ghosts
             for (i=0; i!=ghosts.length; i++) {
@@ -157,6 +162,7 @@
             recalc(ghost, pacman);
         }
 
+        // Recalculate this ghost according to the position of the pacman
         function recalc(ghost, pacman) {
             ghost.recalc = false;
 
@@ -223,17 +229,18 @@
             var map = new google.maps.Map(document.getElementById("map_canvas"), settings);
 
               // Display bounding box
-//            rectangle = new google.maps.Rectangle();
-//            var rectOptions = {
-//                  strokeColor: "#FF0000",
-//                  strokeOpacity: 0.2,
-//                  strokeWeight: 2,
-//                  fillColor: "#FF0000",
-//                  fillOpacity: 0.05,
-//                  map: map,
-//                  bounds: new google.maps.LatLngBounds(bound_ne, bound_sw)
-//            };
-//            rectangle.setOptions(rectOptions);
+            rectangle = new google.maps.Rectangle();
+            var rectOptions = {
+                  strokeColor: "#FF0000",
+                  strokeOpacity: 0.1,
+                  strokeWeight: 2,
+                  fillColor: "#FF0000",
+                  fillOpacity: 0.02,
+                  map: map,
+                  bounds: new google.maps.LatLngBounds(bound_ne, bound_sw),
+                  clickable : false,
+            };
+            rectangle.setOptions(rectOptions);
 
 
             // Add pacman marker in front of the church
@@ -266,7 +273,10 @@
             setTimeout(moveGhosts, 2000);
         }
 
-        var ticker = 0;
+
+        /**
+         * Move around the ghosts (if needed)
+         */
         function moveGhosts() {
             ticker += 1;
 
@@ -340,10 +350,35 @@
             setTimeout(moveGhosts, TICKER_TIME);
         }
 
+
+        /**
+         * Load the pacman position (from external URL)
+         */
+        function loadPacmanPos() {
+            var gps_url = "http://" + window.location.hostname + "/gpspos.php?format=json";
+
+            console.log("Fetching URL " + gps_url);
+            $.ajax({
+              url: gps_url,
+              dataType: "json",
+              success: function(data) {
+                    //console.log("Sucessfully fetched gps pos: " + data);
+
+//                    console.log((data[0] *1).toFixed(5));
+//                    console.log((data[1] *1).toFixed(5));
+
+                    var l = new google.maps.LatLng(data[0], data[1]);
+                    console.log("L "+l);
+                    movePacman(l);
+              }
+            });
+            setTimeout(loadPacmanPos, 5000);
+        };
+
     </script>
 </head>
 
-<body onload="initialize()">
+<body>
     <table border=1 id="ghosttable" align=center>
         <tr><th colspan=5>Ghost status</th></tr>
         <tr><td>Ghost #1</td><td><div id=speed0>0.00 Km/h</div></td><td><div id=distance0>Km: 0.00</div></td><td><div id=left0>Km: 0.00</div></td><td nowrap width=75%><div id="step0">&nbsp;</div></td></tr>
@@ -375,6 +410,17 @@
         The pacman should be moved through a mobile phone that will plot it's coordinate to <b>/gpspos.php?lat=..&long=..</b>.
     </div>
     </center>
+
+
+
+    <script type="text/javascript">
+        $(document).ready(function(){
+            console.log("Intialize");
+            initialize();
+
+            loadPacmanPos();
+        });
+    </script>
 </body>
 </html>
 

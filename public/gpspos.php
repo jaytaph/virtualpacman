@@ -9,8 +9,8 @@
 
 	if (isset($_REQUEST['format']) && $_REQUEST['format'] == "json") {
 		$tmp = explode(" ", $dat);
-		echo json_encode($tmp);
+		echo trim(json_encode($tmp));
 	} else {
-		echo $dat;
+		echo trim($dat);
 	}	
 
