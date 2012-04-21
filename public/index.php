@@ -62,6 +62,13 @@
             pacman.marker.setPosition(LatLng);
             pacman.marker.map.setCenter(LatLng);
 
+            var distance = LatLng.distanceFrom(pacman.lastpos);
+            console.log("Distance from last position: " + distance);
+            if (distance < 100) return;
+
+            pacman.lastpos = LatLng;
+            console.log("RECALC!");
+
             // Recalculate all the ghosts
             for (i=0; i!=ghosts.length; i++) {
                 ghosts[i].recalc = true;
@@ -158,7 +165,7 @@
             // Add ghost to our ghost list
             ghosts.push(ghost);
 
-            // Recalculate
+            // Recalculatef
             recalc(ghost, pacman);
         }
 
@@ -258,6 +265,7 @@
 
             pacman = {
                 marker : meMarker,
+                lastpos : new google.maps.LatLng(51.50992, 5.63845)
             }
 
             google.maps.event.addListener(map, 'click', function(event) {
@@ -286,6 +294,11 @@
 
                 // get distance between pacman and ghost
                 var p = ghost.poly.GetPointAtDistance(ghost.distance);
+                if (p == null) {
+                    //ghost.active = false;
+                    ghost.recalc = true;
+                    continue;
+                }
                 var distance = google.maps.geometry.spherical.computeDistanceBetween(p, pacman.marker.position);
 
                 // Activate or deactive ghost if needed
@@ -347,6 +360,11 @@
                 document.getElementById("speed"+i).innerHTML = ((ghost.speed) * 1).toFixed(2) + " Km/h";
             }
 
+
+            if (ticker % 10 == 0) {
+                loadPacmanPos();
+            }
+
             setTimeout(moveGhosts, TICKER_TIME);
         }
 
@@ -372,7 +390,7 @@
                     movePacman(l);
               }
             });
-            setTimeout(loadPacmanPos, 5000);
+//            setTimeout(loadPacmanPos, 5000);
         };
 
     </script>
