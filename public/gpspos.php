@@ -4,4 +4,13 @@
 		file_put_contents("coords.dat", $_REQUEST['lat']." ".$_REQUEST['long']);
 	}
 
-	echo file_get_contents("coords.dat");
+	
+	$dat = file_get_contents("coords.dat");
+
+	if (isset($_REQUEST['format']) && $_REQUEST['format'] == "json") {
+		$tmp = explode(" ", $dat);
+		echo json_encode($tmp);
+	} else {
+		echo $dat;
+	}	
+
